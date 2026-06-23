@@ -4,8 +4,9 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "icons": "node scripts/generate-icons.js",
     "dev": "vite",
-    "build": "vite build",
+    "build": "npm run icons && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -24,6 +25,7 @@
     "@vitejs/plugin-react": "^4.3.3",
     "autoprefixer": "^10.5.0",
     "postcss": "^8.5.15",
+    "sharp": "^0.35.2",
     "tailwindcss": "^4.3.1",
     "vite": "^5.4.10"
   }

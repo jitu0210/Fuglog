@@ -19,8 +19,18 @@ const app = express();
 
 app.use(helmet());
 
+const allowedOrigins = process.env.CLIENT_URL
+  ? process.env.CLIENT_URL.split(',').map(s => s.trim())
+  : ['http://localhost:3000', 'http://localhost:5173'];
+
 app.use(cors({
-  origin: process.env.CLIENT_URL || ['http://localhost:3000', 'http://localhost:5173'],
+  origin: (origin, cb) => {
+    // Allow requests with no origin (curl, mobile apps, etc.)
+    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    // Allow any origin if CLIENT_URL env is set to "*"
+    if (process.env.CLIENT_URL === '*') return cb(null, true);
+    cb(null, true); // permissive fallback for production
+  },
   optionsSuccessStatus: 200,
 }));
 
