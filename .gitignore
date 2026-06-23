@@ -1,0 +1,2 @@
+# nothing at root level needs ignoring
+# each sub-project has its own .gitignore
