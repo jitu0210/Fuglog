@@ -1,7 +1,9 @@
 import axios from 'axios';
 
+const API_BASE = 'https://fuglog-1.onrender.com/api';
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: API_BASE,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -36,6 +38,7 @@ export const auth = {
 export const posts = {
   list: (params) => api.get('/posts', { params }),
   get: (id) => api.get(`/posts/${id}`),
+  getByCode: (code) => api.get(`/posts/code/${code}`),
   create: (data) => api.post('/posts', data),
   update: (id, data) => api.put(`/posts/${id}`, data),
   delete: (id) => api.delete(`/posts/${id}`),
@@ -56,14 +59,32 @@ export const comments = {
 export const users = {
   get: (id) => api.get(`/users/${id}`),
   getPosts: (id, params) => api.get(`/users/${id}/posts`, { params }),
-  getWishlist: (id) => api.get(`/users/${id}/wishlist`),
+  getWishlist: (id, params) => api.get(`/users/${id}/wishlist`, { params }),
   updateProfile: (data) => api.put('/users/profile', data),
   follow: (id) => api.post(`/users/${id}/follow`),
 };
 
 export const notifications = {
-  list: () => api.get('/notifications'),
+  list: (params) => api.get('/notifications', { params }),
   markRead: () => api.put('/notifications/read'),
+};
+
+export const rooms = {
+  create: (data) => api.post('/rooms', data),
+  joinByCode: (code) => api.post('/rooms/join', { code }),
+  getMine: () => api.get('/rooms/mine'),
+  getByCode: (code) => api.get(`/rooms/${code}`),
+  search: (q) => api.get('/rooms/search', { params: { q } }),
+  sendRequest: (id) => api.post(`/rooms/${id}/request`),
+  getRequests: (id) => api.get(`/rooms/${id}/requests`),
+  approveRequest: (id, userId) => api.post(`/rooms/${id}/request/${userId}/approve`),
+  declineRequest: (id, userId) => api.post(`/rooms/${id}/request/${userId}/decline`),
+  update: (id, data) => api.put(`/rooms/${id}`, data),
+  delete: (id) => api.delete(`/rooms/${id}`),
+  leave: (id) => api.post(`/rooms/${id}/leave`),
+  kickMember: (id, userId) => api.post(`/rooms/${id}/kick/${userId}`),
+  getMessages: (id, params) => api.get(`/rooms/${id}/messages`, { params }),
+  sendMessage: (id, content) => api.post(`/rooms/${id}/messages`, { content }),
 };
 
 export default api;

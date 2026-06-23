@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { users, posts as postsApi } from '../api';
+import { users } from '../api';
 import PostCard from '../components/PostCard';
 import LoadingSpinner from '../components/LoadingSpinner';
 import EmptyState from '../components/EmptyState';
@@ -8,14 +8,17 @@ import EmptyState from '../components/EmptyState';
 function ProfilePage({ user: currentUser, setUser }) {
   const { id } = useParams();
   const [profile, setProfile] = useState(null);
-  const [userPosts, setUserPosts] = useState([]);
-  const [wishlistPosts, setWishlistPosts] = useState([]);
-  const [draftPosts, setDraftPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(false);
   const [tab, setTab] = useState('posts');
+  const [activePage, setActivePage] = useState(1);
   const [fetchError, setFetchError] = useState('');
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
+
+  const [postsData, setPostsData] = useState({ posts: [], total: 0, pages: 0 });
+  const [draftsData, setDraftsData] = useState({ posts: [], total: 0, pages: 0 });
+  const [wishlistData, setWishlistData] = useState({ posts: [], total: 0, pages: 0 });
 
   const isOwnProfile = currentUser && currentUser._id === id;
 
@@ -23,7 +26,7 @@ function ProfilePage({ user: currentUser, setUser }) {
     setLoading(true);
     setFetchError('');
 
-    const loadProfile = users.get(id)
+    users.get(id)
       .then((res) => {
         setProfile(res.data.user);
         if (currentUser && currentUser._id !== id) {
@@ -31,28 +34,40 @@ function ProfilePage({ user: currentUser, setUser }) {
         }
       })
       .catch((err) => {
-        const msg = err.response?.data?.message || err.message || 'Failed to load profile';
+        const msg = err.response?.data?.message || 'Failed to load profile';
         setFetchError(msg);
         if (currentUser && currentUser._id === id) {
           setProfile(currentUser);
         }
-      });
-
-    const loadPosts = users.getPosts(id, { published: 'all' })
-      .then((res) => {
-        const all = res.data.posts;
-        setUserPosts(all.filter((p) => p.published !== false));
-        if (isOwnProfile) setDraftPosts(all.filter((p) => p.published === false));
       })
-      .catch(() => { setUserPosts([]); setDraftPosts([]); });
-
-    const loadWishlist = users.getWishlist(id)
-      .then((res) => setWishlistPosts(res.data.posts))
-      .catch(() => setWishlistPosts([]));
-
-    Promise.allSettled([loadProfile, loadPosts, loadWishlist])
       .finally(() => setLoading(false));
   }, [id, currentUser]);
+
+  useEffect(() => {
+    setActivePage(1);
+  }, [tab]);
+
+  useEffect(() => {
+    setDataLoading(true);
+    const limit = 10;
+
+    if (tab === 'posts') {
+      users.getPosts(id, { page: activePage, limit, published: 'true' })
+        .then((res) => setPostsData(res.data))
+        .catch(() => setPostsData({ posts: [], total: 0, pages: 0 }))
+        .finally(() => setDataLoading(false));
+    } else if (tab === 'drafts') {
+      users.getPosts(id, { page: activePage, limit, published: 'false' })
+        .then((res) => setDraftsData(res.data))
+        .catch(() => setDraftsData({ posts: [], total: 0, pages: 0 }))
+        .finally(() => setDataLoading(false));
+    } else if (tab === 'wishlist') {
+      users.getWishlist(id, { page: activePage, limit })
+        .then((res) => setWishlistData(res.data))
+        .catch(() => setWishlistData({ posts: [], total: 0, pages: 0 }))
+        .finally(() => setDataLoading(false));
+    }
+  }, [id, tab, activePage]);
 
   const handleFollow = async () => {
     if (!currentUser || followLoading) return;
@@ -122,7 +137,8 @@ function ProfilePage({ user: currentUser, setUser }) {
   }
 
   const initials = profile.username.slice(0, 2).toUpperCase();
-  const displayedPosts = tab === 'posts' ? userPosts : tab === 'drafts' ? draftPosts : wishlistPosts;
+  const currentData = tab === 'posts' ? postsData : tab === 'drafts' ? draftsData : wishlistData;
+  const displayedPosts = currentData.posts;
 
   return (
     <div>
@@ -175,11 +191,11 @@ function ProfilePage({ user: currentUser, setUser }) {
                 <div className="text-[0.65rem] text-[#6b7280] uppercase tracking-wider font-sans">Following</div>
               </div>
               <div className="text-center">
-                <div className="text-base font-bold text-[#f5f5f5] font-sans">{userPosts.length}</div>
+                <div className="text-base font-bold text-[#f5f5f5] font-sans">{postsData.total}</div>
                 <div className="text-[0.65rem] text-[#6b7280] uppercase tracking-wider font-sans">Posts</div>
               </div>
               <div className="text-center">
-                <div className="text-base font-bold text-[#f5f5f5] font-sans">{wishlistPosts.length}</div>
+                <div className="text-base font-bold text-[#f5f5f5] font-sans">{wishlistData.total}</div>
                 <div className="text-[0.65rem] text-[#6b7280] uppercase tracking-wider font-sans">Saved</div>
               </div>
               <div className="text-center">
@@ -205,7 +221,7 @@ function ProfilePage({ user: currentUser, setUser }) {
                 : 'text-[#6b7280] hover:text-[#f5f5f5]'
             }`}
           >
-            Published ({userPosts.length})
+            Published ({postsData.total})
           </button>
           <button
             onClick={() => setTab('drafts')}
@@ -215,7 +231,7 @@ function ProfilePage({ user: currentUser, setUser }) {
                 : 'text-[#6b7280] hover:text-[#f5f5f5]'
             }`}
           >
-            Drafts ({draftPosts.length})
+            Drafts ({draftsData.total})
           </button>
           <button
             onClick={() => setTab('wishlist')}
@@ -225,25 +241,63 @@ function ProfilePage({ user: currentUser, setUser }) {
                 : 'text-[#6b7280] hover:text-[#f5f5f5]'
             }`}
           >
-            Saved ({wishlistPosts.length})
+            Saved ({wishlistData.total})
           </button>
         </div>
       )}
 
-      {!isOwnProfile && userPosts.length === 0 ? (
-        <EmptyState title="No posts yet" message="This user hasn't published any posts yet." />
-      ) : isOwnProfile && tab === 'posts' && userPosts.length === 0 ? (
-        <EmptyState title="No posts yet" message="Write your first post to get started." actionLabel="Write a post" actionTo="/create" />
-      ) : isOwnProfile && tab === 'drafts' && draftPosts.length === 0 ? (
-        <EmptyState title="No drafts" message="Posts you save as draft will appear here." />
-      ) : isOwnProfile && tab === 'wishlist' && wishlistPosts.length === 0 ? (
-        <EmptyState title="Nothing saved yet" message="Posts you save will appear here." />
+      {dataLoading ? (
+        <LoadingSpinner text="Loading..." />
+      ) : displayedPosts.length === 0 ? (
+        !isOwnProfile ? (
+          <EmptyState title="No posts yet" message="This user hasn't published any posts yet." />
+        ) : tab === 'posts' ? (
+          <EmptyState title="No posts yet" message="Write your first post to get started." actionLabel="Write a post" actionTo="/create" />
+        ) : tab === 'drafts' ? (
+          <EmptyState title="No drafts" message="Posts you save as draft will appear here." />
+        ) : (
+          <EmptyState title="Nothing saved yet" message="Posts you save will appear here." />
+        )
       ) : (
-        <div className="flex flex-col gap-4">
-          {displayedPosts.map((post) => (
-            <PostCard key={post._id} post={post} user={currentUser} />
-          ))}
-        </div>
+        <>
+          <div className="flex flex-col gap-4">
+            {displayedPosts.map((post) => (
+              <PostCard key={post._id} post={post} user={currentUser} />
+            ))}
+          </div>
+
+          {currentData.pages > 1 && (
+            <div className="flex justify-center items-center gap-1 mt-12 overflow-x-auto pb-2">
+              <button
+                onClick={() => setActivePage(Math.max(1, activePage - 1))}
+                disabled={activePage === 1}
+                className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center border border-[#2a2a2a] rounded-md text-xs sm:text-sm font-semibold font-sans cursor-pointer transition-all bg-[#161616] text-[#9ca3af] hover:border-red-600 hover:text-red-500 hover:bg-red-950 disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0"
+              >
+                Prev
+              </button>
+              {Array.from({ length: currentData.pages }, (_, i) => i + 1).map((p) => (
+                <button
+                  key={p}
+                  className={`w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center border rounded-md text-xs sm:text-sm font-semibold font-sans cursor-pointer transition-all flex-shrink-0 ${
+                    p === activePage
+                      ? 'bg-red-600 text-white border-red-600'
+                      : 'bg-[#161616] text-[#9ca3af] border-[#2a2a2a] hover:border-red-600 hover:text-red-500 hover:bg-red-950'
+                  }`}
+                  onClick={() => setActivePage(p)}
+                >
+                  {p}
+                </button>
+              ))}
+              <button
+                onClick={() => setActivePage(Math.min(currentData.pages, activePage + 1))}
+                disabled={activePage === currentData.pages}
+                className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center border border-[#2a2a2a] rounded-md text-xs sm:text-sm font-semibold font-sans cursor-pointer transition-all bg-[#161616] text-[#9ca3af] hover:border-red-600 hover:text-red-500 hover:bg-red-950 disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0"
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

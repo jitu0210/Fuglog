@@ -1,6 +1,7 @@
 const Comment = require('../models/Comment');
 const Post = require('../models/Post');
 const Notification = require('../models/Notification');
+const { stripAllHtml } = require('../utils/sanitize');
 
 exports.list = async (req, res, next) => {
   try {
@@ -22,7 +23,7 @@ exports.create = async (req, res, next) => {
     if (!post) return res.status(404).json({ message: 'Post not found' });
 
     const comment = await Comment.create({
-      content: req.body.content,
+      content: stripAllHtml(req.body.content),
       author: req.user._id,
       post: postId,
       parentComment: req.body.parentComment || null,
@@ -67,7 +68,7 @@ exports.update = async (req, res, next) => {
     if (!comment) {
       return res.status(404).json({ message: 'Comment not found or unauthorized' });
     }
-    comment.content = req.body.content;
+    comment.content = stripAllHtml(req.body.content);
     await comment.save();
     await comment.populate('author', 'username');
     res.json({ comment });

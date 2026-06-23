@@ -15,8 +15,9 @@ const errorHandler = (err, req, res, next) => {
     return res.status(400).json({ message: 'Invalid ID format' });
   }
 
-  res.status(err.statusCode || 500).json({
-    message: err.message || 'Internal server error',
+  const status = err.status || err.statusCode || 500;
+  res.status(status).json({
+    message: status === 500 ? 'Internal server error' : err.message,
   });
 };
 

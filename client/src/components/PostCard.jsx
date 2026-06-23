@@ -1,11 +1,17 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { posts as postsApi } from '../api';
+import DOMPurify from 'dompurify';
 
 function stripHtml(html) {
   const div = document.createElement('div');
-  div.innerHTML = html;
+  div.innerHTML = DOMPurify.sanitize(html);
   return div.textContent || div.innerText || '';
+}
+
+function getReadingTime(content) {
+  const words = stripHtml(content).trim().split(/\s+/).length;
+  return Math.max(1, Math.ceil(words / 200));
 }
 
 function truncateToWords(text, limit) {
@@ -95,6 +101,10 @@ function PostCard({ post, user }) {
               <span className="truncate max-w-[80px] sm:max-w-none">{post.author?.username || 'Anonymous'}</span>
             </span>
             <span className="flex-shrink-0">{new Date(post.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+            <span className="flex items-center gap-1 flex-shrink-0 text-[#6b7280]">
+              <svg className="w-3 sm:w-3.5 h-3 sm:h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              {getReadingTime(post.content)} min read
+            </span>
             <span className="flex items-center gap-1 flex-shrink-0">
               <svg className="w-3 sm:w-3.5 h-3 sm:h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 20.25c4.97 0 9-3.694 9-8.25s-4.03-8.25-9-8.25S3 7.444 3 12c0 2.104.859 4.023 2.273 5.48.432.447.74 1.04.586 1.641a4.483 4.483 0 01-.923 1.785A5.969 5.969 0 006 21c1.282 0 2.47-.402 3.445-1.087.81.22 1.668.337 2.555.337z" /></svg>
               {post.commentsCount || 0}

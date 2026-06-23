@@ -4,6 +4,7 @@ const User = require('../models/User');
 const Comment = require('../models/Comment');
 const Notification = require('../models/Notification');
 const enrichPosts = require('../utils/enrichPosts');
+const { sanitizePostContent } = require('../utils/sanitize');
 
 exports.list = async (req, res, next) => {
   try {
@@ -54,6 +55,7 @@ exports.getById = async (req, res, next) => {
     const postObj = post.toObject();
     const userId = req.user?._id?.toString();
     res.json({ post: enrichPosts([postObj], userId)[0] });
+    Post.findByIdAndUpdate(req.params.id, { $inc: { viewCount: 1 } }).catch(() => {});
   } catch (error) {
     next(error);
   }
@@ -70,7 +72,7 @@ exports.create = async (req, res, next) => {
       }
     }
 
-    const post = await Post.create({ title, content, tags, imageUrl, published, author: req.user._id });
+    const post = await Post.create({ title, content: sanitizePostContent(content), tags, imageUrl, published, author: req.user._id });
     await post.populate('author', 'username');
     res.status(201).json({ post });
   } catch (error) {
@@ -94,7 +96,7 @@ exports.update = async (req, res, next) => {
     }
 
     if (title !== undefined) post.title = title;
-    if (content !== undefined) post.content = content;
+    if (content !== undefined) post.content = sanitizePostContent(content);
     if (tags !== undefined) post.tags = tags;
     if (imageUrl !== undefined) post.imageUrl = imageUrl;
     if (published !== undefined) post.published = published;
@@ -114,6 +116,21 @@ exports.remove = async (req, res, next) => {
     }
     await Comment.deleteMany({ post: req.params.id });
     res.json({ message: 'Post deleted' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getByCode = async (req, res, next) => {
+  try {
+    const post = await Post.findOne({ postCode: req.params.code }).populate('author', 'username bio');
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+    const postObj = post.toObject();
+    const userId = req.user?._id?.toString();
+    res.json({ post: enrichPosts([postObj], userId)[0] });
+    Post.findByIdAndUpdate(post._id, { $inc: { viewCount: 1 } }).catch(() => {});
   } catch (error) {
     next(error);
   }

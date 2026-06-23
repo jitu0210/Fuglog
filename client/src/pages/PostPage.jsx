@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { posts as postsApi, comments as commentsApi } from '../api';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ReadingProgressBar from '../components/ReadingProgressBar';
 import PostCard from '../components/PostCard';
+import DOMPurify from 'dompurify';
 
 function PostPage({ user }) {
   const { id } = useParams();
@@ -16,6 +17,7 @@ function PostPage({ user }) {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [copied, setCopied] = useState(false);
+  const commentsRef = useRef(null);
 
   const [liked, setLiked] = useState(false);
   const [disliked, setDisliked] = useState(false);
@@ -201,6 +203,18 @@ function PostPage({ user }) {
                 </span>
               </div>
             </Link>
+            <div className="flex items-center gap-3 text-xs text-[#6b7280] font-sans ml-auto">
+              <span className="flex items-center gap-1">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                {(() => { const w = (post.content || '').trim().split(/\s+/).length; return Math.max(1, Math.ceil(w / 200)); })()} min read
+              </span>
+              {post.viewCount > 0 && (
+                <span className="flex items-center gap-1">
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                  {post.viewCount}
+                </span>
+              )}
+            </div>
           </div>
 
           {post.tags?.length > 0 && (
@@ -210,9 +224,23 @@ function PostPage({ user }) {
               ))}
             </div>
           )}
+
+          {post.postCode && (
+            <div className="flex items-center gap-2 mb-6 text-xs text-[#6b7280] font-mono">
+              <span className="text-[#5a5a5a]">Code:</span>
+              <span className="select-all bg-[#1a1a1a] border border-[#2a2a2a] px-2 py-0.5 rounded text-[#9ca3af]">{post.postCode}</span>
+              <button
+                onClick={() => { navigator.clipboard.writeText(post.postCode); }}
+                className="bg-none border-none text-[#6b7280] cursor-pointer hover:text-red-500 transition-colors text-xs"
+                title="Copy post code"
+              >
+                Copy
+              </button>
+            </div>
+          )}
         </div>
 
-        <div className="text-base leading-relaxed text-[#f5f5f5] font-body [&>blockquote]:border-l-2 [&>blockquote]:border-red-600 [&>blockquote]:pl-4 [&>blockquote]:italic [&>blockquote]:text-[#9ca3af] [&>blockquote]:my-4" dangerouslySetInnerHTML={{ __html: post.content }} />
+        <div className="text-base leading-relaxed text-[#f5f5f5] font-body [&>blockquote]:border-l-2 [&>blockquote]:border-red-600 [&>blockquote]:pl-4 [&>blockquote]:italic [&>blockquote]:text-[#9ca3af] [&>blockquote]:my-4" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content) }} />
 
         <div className="flex items-center gap-5 pt-5 mt-6 border-t border-[#2a2a2a] text-sm text-[#9ca3af] font-sans flex-wrap">
           <button onClick={handleLike} className={`flex items-center gap-1.5 bg-none border-none cursor-pointer text-sm font-sans transition-colors ${liked ? 'text-red-500 font-semibold' : 'text-[#9ca3af] hover:text-red-500'}`}>
@@ -223,10 +251,10 @@ function PostPage({ user }) {
             <svg className="w-5 h-5" fill={disliked ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
             {dislikesCount > 0 ? dislikesCount : 'Dislike'}
           </button>
-          <span className="flex items-center gap-1.5 text-[#9ca3af]">
+          <button onClick={() => commentsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="flex items-center gap-1.5 bg-none border-none cursor-pointer text-sm font-sans text-[#9ca3af] hover:text-red-500 transition-colors">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 20.25c4.97 0 9-3.694 9-8.25s-4.03-8.25-9-8.25S3 7.444 3 12c0 2.104.859 4.023 2.273 5.48.432.447.74 1.04.586 1.641a4.483 4.483 0 01-.923 1.785A5.969 5.969 0 006 21c1.282 0 2.47-.402 3.445-1.087.81.22 1.668.337 2.555.337z" /></svg>
             {post.commentsCount || 0} Comments
-          </span>
+          </button>
           <button onClick={handleShare} className="flex items-center gap-1.5 bg-none border-none cursor-pointer text-sm font-sans text-[#9ca3af] hover:text-red-500 transition-colors">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" /></svg>
             {copied ? 'Copied!' : 'Share'}
@@ -254,18 +282,7 @@ function PostPage({ user }) {
         )}
       </article>
 
-      {relatedPosts.length > 0 && (
-        <div className="mb-8">
-          <h3 className="font-display text-xl font-bold mb-5 text-[#f5f5f5]">Related articles</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {relatedPosts.map((rp) => (
-              <PostCard key={rp._id} post={rp} user={user} />
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="bg-[#161616] rounded-lg border border-[#2a2a2a] p-6 md:p-8">
+      <div ref={commentsRef} className="bg-[#161616] rounded-lg border border-[#2a2a2a] p-6 md:p-8 mb-8">
         <h3 className="font-display text-xl font-bold mb-6 text-[#f5f5f5]">
           Comments <span className="bg-red-950 text-red-400 px-2 py-0.5 rounded-full text-xs font-semibold font-sans ml-1">{comments.length}</span>
         </h3>
@@ -422,6 +439,17 @@ function PostPage({ user }) {
           ))
         )}
       </div>
+
+      {relatedPosts.length > 0 && (
+        <div>
+          <h3 className="font-display text-xl font-bold mb-5 text-[#f5f5f5]">Related articles</h3>
+          <div className="flex flex-col gap-5">
+            {relatedPosts.map((rp) => (
+              <PostCard key={rp._id} post={rp} user={user} />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

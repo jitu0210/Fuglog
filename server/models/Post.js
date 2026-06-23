@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const crypto = require('crypto');
 
 const postSchema = new mongoose.Schema({
   title: {
@@ -48,6 +49,15 @@ const postSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  postCode: {
+    type: String,
+    unique: true,
+    index: true,
+  },
+  viewCount: {
+    type: Number,
+    default: 0,
+  },
 }, { timestamps: true });
 
 postSchema.index({ author: 1, createdAt: -1 });
@@ -57,6 +67,9 @@ postSchema.index({ title: 'text', content: 'text' });
 postSchema.pre('save', function (next) {
   if (!this.excerpt && this.content) {
     this.excerpt = this.content.substring(0, 200) + '...';
+  }
+  if (this.isNew && !this.postCode) {
+    this.postCode = crypto.randomBytes(6).toString('hex');
   }
   next();
 });

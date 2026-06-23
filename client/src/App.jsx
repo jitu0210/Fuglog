@@ -10,6 +10,12 @@ import RegisterPage from './pages/RegisterPage';
 import ProfilePage from './pages/ProfilePage';
 import EditProfilePage from './pages/EditProfilePage';
 import GuidelinesPage from './pages/GuidelinesPage';
+import MyRoomsPage from './pages/MyRoomsPage';
+import CreateRoomPage from './pages/CreateRoomPage';
+import RoomDetailPage from './pages/RoomDetailPage';
+import JoinRoomPage from './pages/JoinRoomPage';
+import SearchRoomsPage from './pages/SearchRoomsPage';
+import RoomRequestsPage from './pages/RoomRequestsPage';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -36,6 +42,12 @@ function App() {
           <Route path="/profile/:id" element={<ProfilePage user={user} setUser={setUser} />} />
           <Route path="/settings" element={<EditProfilePage user={user} setUser={setUser} />} />
           <Route path="/guidelines" element={<GuidelinesPage />} />
+          <Route path="/rooms" element={<MyRoomsPage user={user} />} />
+          <Route path="/rooms/create" element={<CreateRoomPage user={user} />} />
+          <Route path="/rooms/join" element={<JoinRoomPage user={user} />} />
+          <Route path="/rooms/search" element={<SearchRoomsPage user={user} />} />
+          <Route path="/rooms/:code/requests" element={<RoomRequestsPage user={user} />} />
+          <Route path="/rooms/:code" element={<RoomDetailPage user={user} />} />
         </Routes>
       </main>
 

@@ -3,6 +3,7 @@ const User = require('../models/User');
 const Post = require('../models/Post');
 const Notification = require('../models/Notification');
 const enrichPosts = require('../utils/enrichPosts');
+const { stripAllHtml } = require('../utils/sanitize');
 
 exports.getTrendingTags = async (req, res, next) => {
   try {
@@ -39,9 +40,13 @@ exports.getProfile = async (req, res, next) => {
 
 exports.getUserPosts = async (req, res, next) => {
   try {
-    const { page = 1, limit = 10 } = req.query;
+    const { page = 1, limit = 10, published } = req.query;
+    const match = { author: new mongoose.Types.ObjectId(req.params.id) };
+    if (published !== 'all') {
+      match.published = published !== 'false';
+    }
     const pipeline = [
-      { $match: { author: new mongoose.Types.ObjectId(req.params.id) } },
+      { $match: match },
       { $addFields: { likesCount: { $size: { $ifNull: ['$likes', []] } } } },
       { $sort: { likesCount: -1, createdAt: -1 } },
       { $skip: (Number(page) - 1) * Number(limit) },
@@ -52,7 +57,7 @@ exports.getUserPosts = async (req, res, next) => {
     ];
 
     const posts = await Post.aggregate(pipeline);
-    const total = await Post.countDocuments({ author: req.params.id });
+    const total = await Post.countDocuments(match);
     const userId = req.user?._id?.toString();
     res.json({ posts: enrichPosts(posts, userId), total, page: Number(page), pages: Math.ceil(total / limit) });
   } catch (error) {
@@ -62,21 +67,26 @@ exports.getUserPosts = async (req, res, next) => {
 
 exports.getUserWishlist = async (req, res, next) => {
   try {
+    const { page = 1, limit = 10 } = req.query;
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
+    const match = { _id: { $in: user.wishlist.map((id) => new mongoose.Types.ObjectId(id)) } };
     const pipeline = [
-      { $match: { _id: { $in: user.wishlist.map((id) => new mongoose.Types.ObjectId(id)) } } },
+      { $match: match },
       { $addFields: { likesCount: { $size: { $ifNull: ['$likes', []] } } } },
       { $sort: { likesCount: -1, createdAt: -1 } },
+      { $skip: (Number(page) - 1) * Number(limit) },
+      { $limit: Number(limit) },
       { $lookup: { from: 'users', localField: 'author', foreignField: '_id', as: 'author' } },
       { $unwind: { path: '$author', preserveNullAndEmptyArrays: true } },
       { $project: { 'author.password': 0, 'author.email': 0 } },
     ];
 
     const posts = await Post.aggregate(pipeline);
+    const total = await Post.countDocuments(match);
     const userId = req.user?._id?.toString();
-    res.json({ posts: enrichPosts(posts, userId) });
+    res.json({ posts: enrichPosts(posts, userId), total, page: Number(page), pages: Math.ceil(total / limit) });
   } catch (error) {
     next(error);
   }
@@ -91,7 +101,7 @@ exports.updateProfile = async (req, res, next) => {
       if (existing) return res.status(409).json({ message: 'Username already taken' });
       user.username = username;
     }
-    if (bio !== undefined) user.bio = bio;
+    if (bio !== undefined) user.bio = stripAllHtml(bio);
     await user.save();
     res.json({ user });
   } catch (error) {
